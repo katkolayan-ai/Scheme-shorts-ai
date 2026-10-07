@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="SchemeShorts AI turns government scheme notices into simple 60-second explainers.">
+  <title>SchemeShorts AI</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.min.mjs" type="module"></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo">S</span><div><b>SchemeShorts <em>AI</em></b><small>Government schemes. Simplified.</small></div></div>
+  <span class="team">TEAM THIRD EYE</span>
+</header>
+
+<main>
+  <section class="hero">
+    <p class="eyebrow">GOVERNMENT INFORMATION • MADE SIMPLE</p>
+    <h1>Turn complicated scheme PDFs into <span>60-second explainers.</span></h1>
+    <p>Upload an official government notice. SchemeShorts AI extracts the important information and creates a simple, easy-to-understand explainer.</p>
+  </section>
+
+  <section class="workspace">
+    <div class="card">
+      <div class="heading"><span>01</span><div><h2>Upload notice</h2><p>Start with the official PDF.</p></div></div>
+
+      <label class="drop" id="drop" for="pdf">
+        <input id="pdf" type="file" accept="application/pdf,.pdf">
+        <strong>Choose a PDF</strong>
+        <span>or drag & drop it here</span>
+        <small>PDF text is extracted in your browser.</small>
+      </label>
+
+      <div id="fileInfo" class="file hidden"></div>
+      <button id="generate" class="primary" disabled>Generate 60-second explainer</button>
+      <p id="status" class="status"></p>
+    </div>
+
+    <div class="card">
+      <div class="heading"><span>02</span><div><h2>Your explainer</h2><p>Simple. Short. Useful.</p></div></div>
+
+      <div id="empty" class="empty">
+        <div>✦</div>
+        <h3>Nothing generated yet</h3>
+        <p>Upload a government scheme PDF to generate the explainer.</p>
+      </div>
+
+      <div id="result" class="hidden">
+        <div class="scheme"><small>SCHEME</small><h3 id="name">—</h3></div>
+        <div class="facts">
+          <div><small>BENEFIT</small><b id="benefit">—</b></div>
+          <div><small>ELIGIBILITY</small><b id="eligibility">—</b></div>
+          <div><small>DEADLINE</small><b id="deadline">—</b></div>
+        </div>
+        <div class="scriptHead"><label for="script">60-SECOND SCRIPT</label><span id="words">0 words</span></div>
+        <textarea id="script" rows="11" placeholder="Your script will appear here."></textarea>
+        <div class="actions">
+          <button id="listen" class="secondary">▶ Listen</button>
+          <button id="copy" class="secondary">Copy</button>
+          <button id="download" class="secondary">Download</button>
+        </div>
+        <p id="note" class="note"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="how">
+    <p class="eyebrow">HOW IT WORKS</p>
+    <h2>PDF → Understand → Explain</h2>
+    <div class="howgrid">
+      <article><b>01</b><h3>Read</h3><p>Extract text from the government notification.</p></article>
+      <article><b>02</b><h3>Understand</h3><p>Find benefits, eligibility and deadlines.</p></article>
+      <article><b>03</b><h3>Explain</h3><p>Create a short script ready for a video.</p></article>
+    </div>
+  </section>
+</main>
+
+<footer><b>SchemeShorts AI</b><span>Prototype • Team Third Eye</span></footer>
+<script type="module" src="app.js"></script>
+</body>
+</html>
