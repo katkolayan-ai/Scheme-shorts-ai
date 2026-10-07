@@ -3,36 +3,181 @@ import * as pdfjsLib from "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38
 pdfjsLib.GlobalWorkerOptions.workerSrc =
   "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.10.38/pdf.worker.min.mjs";
 
+/* =========================================================
+   ELEMENTS
+   ========================================================= */
+
 const fileInput = document.getElementById("pdf");
 const dropZone = document.getElementById("drop");
 const generateButton = document.getElementById("generate");
 const fileInfo = document.getElementById("fileInfo");
 const status = document.getElementById("status");
 
+const scriptBox = document.getElementById("script");
+const listenButton = document.getElementById("listen");
+const copyButton = document.getElementById("copy");
+const downloadButton = document.getElementById("download");
+
 let extractedText = "";
 let currentResult = null;
+
+let generatedAudioBlob = null;
+let generatedAudioUrl = null;
 let generatedVideoUrl = null;
+
+
+/* =========================================================
+   OPTIONAL LANGUAGE / VOICE ELEMENTS
+   ========================================================= */
+
+const languageSelect =
+  document.getElementById("language");
+
+const voiceSelect =
+  document.getElementById("voice");
+
+
+/*
+   If the current HTML does not yet contain the language
+   selector, create it automatically.
+*/
+
+function ensureSelectors() {
+
+  if (languageSelect && voiceSelect) {
+    return;
+  }
+
+  const existingContainer =
+    generateButton?.parentElement;
+
+  if (!existingContainer) {
+    return;
+  }
+
+  if (!document.getElementById("language")) {
+
+    const box =
+      document.createElement("div");
+
+    box.style.marginTop = "18px";
+
+    box.innerHTML = `
+      <label
+        style="
+          display:block;
+          font-size:12px;
+          font-weight:700;
+          margin-bottom:7px;
+          letter-spacing:.08em;
+        "
+      >
+        VIDEO LANGUAGE
+      </label>
+
+      <select
+        id="language"
+        style="
+          width:100%;
+          padding:12px;
+          border-radius:10px;
+          border:1px solid #d9dee8;
+          font-size:15px;
+          background:white;
+        "
+      >
+        <option value="en">🇬🇧 English</option>
+        <option value="hi">🇮🇳 Hindi</option>
+        <option value="kok">🌴 Konkani</option>
+      </select>
+    `;
+
+    existingContainer.insertBefore(
+      box,
+      generateButton
+    );
+  }
+
+  if (!document.getElementById("voice")) {
+
+    const box =
+      document.createElement("div");
+
+    box.style.marginTop = "12px";
+
+    box.innerHTML = `
+      <label
+        style="
+          display:block;
+          font-size:12px;
+          font-weight:700;
+          margin-bottom:7px;
+          letter-spacing:.08em;
+        "
+      >
+        AI VOICE
+      </label>
+
+      <select
+        id="voice"
+        style="
+          width:100%;
+          padding:12px;
+          border-radius:10px;
+          border:1px solid #d9dee8;
+          font-size:15px;
+          background:white;
+        "
+      >
+        <option value="Kore">Kore — Warm Female</option>
+        <option value="Puck">Puck — Energetic Male</option>
+        <option value="Zephyr">Zephyr — Clear Female</option>
+        <option value="Fenrir">Fenrir — Authoritative Male</option>
+        <option value="Charon">Charon — Gentle Male</option>
+        <option value="Aoede">Aoede — Expressive Female</option>
+      </select>
+    `;
+
+    existingContainer.insertBefore(
+      box,
+      generateButton
+    );
+  }
+}
+
+ensureSelectors();
+
 
 /* =========================================================
    STATUS
    ========================================================= */
 
 function setStatus(message, isError = false) {
+
   status.textContent = message;
-  status.classList.toggle("error", isError);
+
+  status.classList.toggle(
+    "error",
+    isError
+  );
 }
 
 
 /* =========================================================
-   PDF TEXT EXTRACTION
+   PDF EXTRACTION
    ========================================================= */
 
 async function extractPdfText(file) {
-  const buffer = await file.arrayBuffer();
 
-  const pdf = await pdfjsLib.getDocument({
-    data: buffer
-  }).promise;
+  const buffer =
+    await file.arrayBuffer();
+
+  const pdf =
+    await pdfjsLib
+      .getDocument({
+        data: buffer
+      })
+      .promise;
 
   const pages = [];
 
@@ -41,67 +186,97 @@ async function extractPdfText(file) {
     pageNumber <= pdf.numPages;
     pageNumber++
   ) {
-    const page = await pdf.getPage(pageNumber);
-    const content = await page.getTextContent();
 
-    const pageText = content.items
-      .map(item => item.str || "")
-      .join(" ")
-      .replace(/\s+/g, " ")
-      .trim();
+    const page =
+      await pdf.getPage(
+        pageNumber
+      );
+
+    const content =
+      await page.getTextContent();
+
+    const pageText =
+      content.items
+        .map(
+          item =>
+            item.str || ""
+        )
+        .join(" ")
+        .replace(/\s+/g, " ")
+        .trim();
 
     pages.push(pageText);
   }
 
-  return pages.join("\n\n").trim();
+  return pages
+    .join("\n\n")
+    .trim();
 }
 
 
 /* =========================================================
-   FILE UPLOAD
+   FILE HANDLING
    ========================================================= */
 
 async function handleFile(file) {
+
   if (!file) return;
 
   const isPdf =
     file.type === "application/pdf" ||
-    file.name.toLowerCase().endsWith(".pdf");
+    file.name
+      .toLowerCase()
+      .endsWith(".pdf");
 
   if (!isPdf) {
+
     setStatus(
       "Please select a PDF file.",
       true
     );
+
     return;
   }
 
-  fileInfo.textContent = file.name;
-  fileInfo.classList.remove("hidden");
+  fileInfo.textContent =
+    file.name;
+
+  fileInfo.classList.remove(
+    "hidden"
+  );
 
   extractedText = "";
 
-  generateButton.disabled = true;
+  generateButton.disabled =
+    true;
 
-  setStatus("Reading PDF...");
+  setStatus(
+    "Reading PDF..."
+  );
 
   try {
+
     extractedText =
-      await extractPdfText(file);
+      await extractPdfText(
+        file
+      );
 
     if (!extractedText) {
+
       throw new Error(
         "No selectable text found in this PDF."
       );
     }
 
-    generateButton.disabled = false;
+    generateButton.disabled =
+      false;
 
     setStatus(
       "PDF read successfully. Ready to generate."
     );
 
   } catch (error) {
+
     console.error(error);
 
     setStatus(
@@ -111,14 +286,17 @@ async function handleFile(file) {
   }
 }
 
+
 dropZone.addEventListener(
   "click",
   () => fileInput.click()
 );
 
+
 fileInput.addEventListener(
   "change",
   () => {
+
     const file =
       fileInput.files?.[0];
 
@@ -130,42 +308,56 @@ fileInput.addEventListener(
 
 
 /* =========================================================
-   DRAG AND DROP
+   DRAG & DROP
    ========================================================= */
 
-["dragenter", "dragover"].forEach(
-  eventName => {
-    dropZone.addEventListener(
-      eventName,
-      event => {
-        event.preventDefault();
-        event.stopPropagation();
+["dragenter", "dragover"]
+  .forEach(
+    eventName => {
 
-        dropZone.classList.add("drag");
-      }
-    );
-  }
-);
+      dropZone.addEventListener(
+        eventName,
+        event => {
 
-["dragleave", "drop"].forEach(
-  eventName => {
-    dropZone.addEventListener(
-      eventName,
-      event => {
-        event.preventDefault();
-        event.stopPropagation();
+          event.preventDefault();
+          event.stopPropagation();
 
-        dropZone.classList.remove("drag");
-      }
-    );
-  }
-);
+          dropZone.classList.add(
+            "drag"
+          );
+        }
+      );
+    }
+  );
+
+
+["dragleave", "drop"]
+  .forEach(
+    eventName => {
+
+      dropZone.addEventListener(
+        eventName,
+        event => {
+
+          event.preventDefault();
+          event.stopPropagation();
+
+          dropZone.classList.remove(
+            "drag"
+          );
+        }
+      );
+    }
+  );
+
 
 dropZone.addEventListener(
   "drop",
   event => {
+
     const file =
-      event.dataTransfer?.files?.[0];
+      event.dataTransfer
+        ?.files?.[0];
 
     if (file) {
       handleFile(file);
@@ -175,7 +367,7 @@ dropZone.addEventListener(
 
 
 /* =========================================================
-   GEMINI GENERATION
+   GENERATE EXPLAINER
    ========================================================= */
 
 generateButton.addEventListener(
@@ -183,14 +375,22 @@ generateButton.addEventListener(
   async () => {
 
     if (!extractedText) {
+
       setStatus(
         "Please select a PDF first.",
         true
       );
+
       return;
     }
 
-    generateButton.disabled = true;
+    const language =
+      document.getElementById(
+        "language"
+      )?.value || "en";
+
+    generateButton.disabled =
+      true;
 
     generateButton.textContent =
       "Generating...";
@@ -213,7 +413,8 @@ generateButton.addEventListener(
             },
 
             body: JSON.stringify({
-              text: extractedText
+              text: extractedText,
+              language: language
             })
           }
         );
@@ -222,18 +423,22 @@ generateButton.addEventListener(
         await response.json();
 
       if (!response.ok) {
+
         throw new Error(
           data.error ||
           "AI generation failed."
         );
       }
 
-      currentResult = data;
+      currentResult =
+        data;
 
-      renderResult(data);
+      renderResult(
+        data
+      );
 
       setStatus(
-        "Explainer generated successfully."
+        "✅ Explainer generated successfully."
       );
 
     } catch (error) {
@@ -248,7 +453,8 @@ generateButton.addEventListener(
 
     } finally {
 
-      generateButton.disabled = false;
+      generateButton.disabled =
+        false;
 
       generateButton.textContent =
         "Generate 60-second explainer";
@@ -258,7 +464,7 @@ generateButton.addEventListener(
 
 
 /* =========================================================
-   DISPLAY AI RESULT
+   DISPLAY RESULT
    ========================================================= */
 
 function renderResult(result) {
@@ -295,9 +501,7 @@ function renderResult(result) {
     result.deadline ||
     "Not specified in the notice.";
 
-  document.getElementById(
-    "script"
-  ).value =
+  scriptBox.value =
     result.script || "";
 
   document.getElementById(
@@ -318,15 +522,12 @@ function renderResult(result) {
 
 function updateWordCount() {
 
-  const script =
-    document
-      .getElementById("script")
-      .value
-      .trim();
+  const text =
+    scriptBox.value.trim();
 
   const count =
-    script
-      ? script.split(/\s+/).length
+    text
+      ? text.split(/\s+/).length
       : 0;
 
   document.getElementById(
@@ -335,12 +536,269 @@ function updateWordCount() {
     `${count} words`;
 }
 
-document
-  .getElementById("script")
-  .addEventListener(
-    "input",
-    updateWordCount
+
+scriptBox.addEventListener(
+  "input",
+  updateWordCount
+);
+
+
+/* =========================================================
+   COPY
+   ========================================================= */
+
+copyButton.addEventListener(
+  "click",
+  async () => {
+
+    try {
+
+      await navigator.clipboard.writeText(
+        scriptBox.value
+      );
+
+      setStatus(
+        "Script copied."
+      );
+
+    } catch {
+
+      scriptBox.select();
+
+      document.execCommand(
+        "copy"
+      );
+
+      setStatus(
+        "Script copied."
+      );
+    }
+  }
+);
+
+
+/* =========================================================
+   DOWNLOAD SCRIPT
+   ========================================================= */
+
+downloadButton.addEventListener(
+  "click",
+  () => {
+
+    const blob =
+      new Blob(
+        [scriptBox.value],
+        {
+          type:
+            "text/plain;charset=utf-8"
+        }
+      );
+
+    const url =
+      URL.createObjectURL(
+        blob
+      );
+
+    const link =
+      document.createElement(
+        "a"
+      );
+
+    link.href = url;
+
+    link.download =
+      "SchemeShorts-script.txt";
+
+    link.click();
+
+    URL.revokeObjectURL(
+      url
+    );
+  }
+);
+
+
+/* =========================================================
+   GEMINI TTS
+   ========================================================= */
+
+async function generateVoiceover() {
+
+  if (!currentResult) {
+
+    throw new Error(
+      "Generate the explainer first."
+    );
+  }
+
+  const script =
+    scriptBox.value.trim();
+
+  if (!script) {
+
+    throw new Error(
+      "There is no script to convert to voice."
+    );
+  }
+
+  const language =
+    document.getElementById(
+      "language"
+    )?.value || "en";
+
+  const voice =
+    document.getElementById(
+      "voice"
+    )?.value || "Kore";
+
+  setStatus(
+    "🎙️ Generating AI voiceover..."
   );
+
+  const response =
+    await fetch(
+      "/api/tts",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json"
+        },
+
+        body: JSON.stringify({
+          text: script,
+          language: language,
+          voice: voice
+        })
+      }
+    );
+
+  const data =
+    await response.json();
+
+  if (!response.ok) {
+
+    throw new Error(
+      data.error ||
+      "Voiceover generation failed."
+    );
+  }
+
+  if (!data.audioBase64) {
+
+    throw new Error(
+      "Gemini returned no audio."
+    );
+  }
+
+  /*
+    Gemini TTS returns base64 audio.
+    Convert it into a browser Blob.
+  */
+
+  const binary =
+    atob(
+      data.audioBase64
+    );
+
+  const bytes =
+    new Uint8Array(
+      binary.length
+    );
+
+  for (
+    let i = 0;
+    i < binary.length;
+    i++
+  ) {
+
+    bytes[i] =
+      binary.charCodeAt(i);
+  }
+
+  generatedAudioBlob =
+    new Blob(
+      [bytes],
+      {
+        type:
+          data.mimeType ||
+          "audio/wav"
+      }
+    );
+
+  if (generatedAudioUrl) {
+
+    URL.revokeObjectURL(
+      generatedAudioUrl
+    );
+  }
+
+  generatedAudioUrl =
+    URL.createObjectURL(
+      generatedAudioBlob
+    );
+
+  return generatedAudioBlob;
+}
+
+
+/* =========================================================
+   LISTEN — REAL AI VOICE
+   ========================================================= */
+
+listenButton.addEventListener(
+  "click",
+  async () => {
+
+    listenButton.disabled =
+      true;
+
+    listenButton.textContent =
+      "🎙️ Generating...";
+
+    try {
+
+      await generateVoiceover();
+
+      const audio =
+        new Audio(
+          generatedAudioUrl
+        );
+
+      audio.play();
+
+      setStatus(
+        "🔊 Playing AI voiceover."
+      );
+
+      audio.onended =
+        () => {
+
+          listenButton.disabled =
+            false;
+
+          listenButton.textContent =
+            "▶ Listen";
+        };
+
+    } catch (error) {
+
+      console.error(error);
+
+      setStatus(
+        error.message,
+        true
+      );
+
+      listenButton.disabled =
+        false;
+
+      listenButton.textContent =
+        "▶ Listen";
+    }
+  }
+);
 
 
 /* =========================================================
@@ -349,80 +807,72 @@ document
 
 function addVideoControls() {
 
-  if (
+  let controls =
     document.getElementById(
       "videoControls"
-    )
-  ) {
-    return;
+    );
+
+  if (!controls) {
+
+    controls =
+      document.createElement(
+        "div"
+      );
+
+    controls.id =
+      "videoControls";
+
+    controls.style.marginTop =
+      "24px";
+
+    controls.style.paddingTop =
+      "20px";
+
+    controls.style.borderTop =
+      "1px solid #e5e7eb";
+
+    document
+      .getElementById("result")
+      .appendChild(
+        controls
+      );
   }
 
-  const result =
+  let button =
     document.getElementById(
-      "result"
+      "createVideo"
     );
 
-  const container =
-    document.createElement(
-      "div"
+  if (!button) {
+
+    button =
+      document.createElement(
+        "button"
+      );
+
+    button.id =
+      "createVideo";
+
+    button.className =
+      "primary";
+
+    button.style.width =
+      "100%";
+
+    button.textContent =
+      "🎬 Create 60-second video";
+
+    controls.appendChild(
+      button
     );
 
-  container.id =
-    "videoControls";
+  } else {
 
-  container.style.marginTop =
-    "20px";
+    button.onclick = null;
+  }
 
-  container.style.paddingTop =
-    "20px";
-
-  container.style.borderTop =
-    "1px solid #e5e7eb";
-
-  const heading =
-    document.createElement(
-      "h3"
-    );
-
-  heading.textContent =
-    "🎬 Video";
-
-  heading.style.marginBottom =
-    "10px";
-
-  container.appendChild(
-    heading
-  );
-
-  const button =
-    document.createElement(
-      "button"
-    );
-
-  button.id =
-    "createVideo";
-
-  button.className =
-    "primary";
-
-  button.textContent =
-    "Create 60-second video";
-
-  button.style.width =
-    "100%";
-
-  button.addEventListener(
-    "click",
-    createVideo
-  );
-
-  container.appendChild(
-    button
-  );
-
-  result.appendChild(
-    container
-  );
+  button.onclick =
+    createVideo;
 }
 
 
@@ -439,37 +889,20 @@ function wrapText(
   lineHeight
 ) {
 
-  const paragraphs =
+  const words =
     String(text)
-      .split("\n");
+      .replace(/\n/g, " \n ")
+      .split(/\s+/);
+
+  let line = "";
 
   for (
-    const paragraph of paragraphs
+    const word of words
   ) {
 
-    const words =
-      paragraph.split(" ");
+    if (word === "\n") {
 
-    let line = "";
-
-    for (
-      const word of words
-    ) {
-
-      const testLine =
-        line
-          ? `${line} ${word}`
-          : word;
-
-      const width =
-        ctx.measureText(
-          testLine
-        ).width;
-
-      if (
-        width > maxWidth &&
-        line
-      ) {
+      if (line) {
 
         ctx.fillText(
           line,
@@ -477,17 +910,25 @@ function wrapText(
           y
         );
 
-        line = word;
+        line = "";
 
         y += lineHeight;
-
-      } else {
-
-        line = testLine;
       }
+
+      continue;
     }
 
-    if (line) {
+    const test =
+      line
+        ? `${line} ${word}`
+        : word;
+
+    if (
+      ctx.measureText(
+        test
+      ).width > maxWidth &&
+      line
+    ) {
 
       ctx.fillText(
         line,
@@ -495,9 +936,28 @@ function wrapText(
         y
       );
 
+      line = word;
+
       y += lineHeight;
+
+    } else {
+
+      line = test;
     }
   }
+
+  if (line) {
+
+    ctx.fillText(
+      line,
+      x,
+      y
+    );
+
+    y += lineHeight;
+  }
+
+  return y;
 }
 
 
@@ -517,8 +977,31 @@ function drawVideoFrame(
 
   /* Background */
 
+  const gradient =
+    ctx.createLinearGradient(
+      0,
+      0,
+      width,
+      height
+    );
+
+  gradient.addColorStop(
+    0,
+    "#08111f"
+  );
+
+  gradient.addColorStop(
+    0.55,
+    "#10243a"
+  );
+
+  gradient.addColorStop(
+    1,
+    "#07101d"
+  );
+
   ctx.fillStyle =
-    "#0b1220";
+    gradient;
 
   ctx.fillRect(
     0,
@@ -528,20 +1011,36 @@ function drawVideoFrame(
   );
 
 
-  /* Decorative circle */
+  /* Decorative glow */
 
   ctx.beginPath();
 
   ctx.arc(
-    width - 80,
-    110,
-    130,
+    width - 50,
+    170,
+    190,
     0,
     Math.PI * 2
   );
 
   ctx.fillStyle =
-    "rgba(255,255,255,0.04)";
+    "rgba(75,170,255,0.08)";
+
+  ctx.fill();
+
+
+  ctx.beginPath();
+
+  ctx.arc(
+    40,
+    height - 250,
+    180,
+    0,
+    Math.PI * 2
+  );
+
+  ctx.fillStyle =
+    "rgba(255,255,255,0.035)";
 
   ctx.fill();
 
@@ -557,7 +1056,7 @@ function drawVideoFrame(
   ctx.fillText(
     "SCHEME",
     55,
-    70
+    72
   );
 
   ctx.fillText(
@@ -570,82 +1069,87 @@ function drawVideoFrame(
   /* Scene number */
 
   ctx.fillStyle =
-    "#8fa3bf";
+    "#9eb0c8";
 
   ctx.font =
-    "24px Arial";
+    "22px Arial";
 
   ctx.fillText(
-    `${sceneNumber}/${totalScenes}`,
-    width - 110,
-    75
+    `${sceneNumber} / ${totalScenes}`,
+    width - 125,
+    70
   );
 
 
-  /* Small line */
+  /* Accent line */
 
   ctx.fillStyle =
     "#ffffff";
 
   ctx.fillRect(
     55,
-    160,
-    70,
+    155,
+    80,
     5
   );
 
 
-  /* Title */
+  /* Scene title */
 
   ctx.fillStyle =
     "#ffffff";
 
   ctx.font =
-    "bold 46px Arial";
+    "bold 44px Arial";
 
-  wrapText(
-    ctx,
-    scene.title,
-    55,
-    270,
-    width - 110,
-    60
-  );
+  let y =
+    wrapText(
+      ctx,
+      scene.title,
+      55,
+      270,
+      width - 110,
+      58
+    );
 
 
-  /* Main text */
+  /* Main content */
 
   ctx.fillStyle =
-    "#dce6f2";
+    "#dbe7f5";
 
   ctx.font =
-    "bold 36px Arial";
+    "bold 34px Arial";
 
   wrapText(
     ctx,
     scene.text,
     55,
-    470,
+    y + 85,
     width - 110,
-    54
+    50
   );
 
 
   /* Progress */
 
-  const barX = 55;
-  const barY = height - 115;
+  const barX =
+    55;
+
+  const barY =
+    height - 110;
+
   const barWidth =
     width - 110;
 
   ctx.fillStyle =
-    "#26344d";
+    "rgba(255,255,255,0.14)";
 
   ctx.fillRect(
     barX,
     barY,
     barWidth,
-    8
+    7
   );
 
   ctx.fillStyle =
@@ -654,18 +1158,25 @@ function drawVideoFrame(
   ctx.fillRect(
     barX,
     barY,
-    barWidth * progress,
-    8
+    barWidth *
+      Math.max(
+        0,
+        Math.min(
+          1,
+          progress
+        )
+      ),
+    7
   );
 
 
   /* Footer */
 
   ctx.fillStyle =
-    "#8fa3bf";
+    "#91a5bf";
 
   ctx.font =
-    "22px Arial";
+    "20px Arial";
 
   ctx.fillText(
     "TEAM THIRD EYE",
@@ -676,7 +1187,7 @@ function drawVideoFrame(
 
 
 /* =========================================================
-   CREATE REAL 60-SECOND VIDEO
+   CREATE VIDEO WITH VOICEOVER
    ========================================================= */
 
 async function createVideo() {
@@ -691,9 +1202,9 @@ async function createVideo() {
     return;
   }
 
+
   if (
-    !HTMLCanvasElement.prototype
-      .captureStream
+    !HTMLCanvasElement.prototype.captureStream
   ) {
 
     setStatus(
@@ -704,9 +1215,8 @@ async function createVideo() {
     return;
   }
 
-  if (
-    !window.MediaRecorder
-  ) {
+
+  if (!window.MediaRecorder) {
 
     setStatus(
       "Video recording is not supported by this browser.",
@@ -722,43 +1232,151 @@ async function createVideo() {
       "createVideo"
     );
 
-  button.disabled = true;
+  button.disabled =
+    true;
 
   button.textContent =
-    "Creating video...";
-
-
-  setStatus(
-    "🎬 Creating your real 60-second video. Keep this page open..."
-  );
+    "🎙️ Generating voice...";
 
 
   try {
 
-    /* 9:16 vertical */
+    /* -----------------------------------------
+       STEP 1 — Generate AI voice
+       ----------------------------------------- */
+
+    await generateVoiceover();
+
+
+    /* -----------------------------------------
+       STEP 2 — Create audio element
+       ----------------------------------------- */
+
+    const audio =
+      new Audio(
+        generatedAudioUrl
+      );
+
+    audio.preload =
+      "auto";
+
+
+    await new Promise(
+      resolve => {
+
+        if (
+          audio.readyState >= 2
+        ) {
+
+          resolve();
+
+          return;
+        }
+
+        audio.onloadedmetadata =
+          resolve;
+
+        audio.onerror =
+          resolve;
+      }
+    );
+
+
+    /*
+      The AI voice determines the natural
+      duration. We create a video timeline
+      around it.
+    */
+
+    const audioDuration =
+      Math.max(
+        1,
+        audio.duration ||
+          60
+      );
+
+
+    /* -----------------------------------------
+       STEP 3 — Canvas
+       ----------------------------------------- */
 
     const canvas =
       document.createElement(
         "canvas"
       );
 
-    canvas.width = 720;
-    canvas.height = 1280;
+    canvas.width =
+      720;
+
+    canvas.height =
+      1280;
 
     const ctx =
-      canvas.getContext("2d");
+      canvas.getContext(
+        "2d"
+      );
 
 
-    /* Video stream */
+    /* -----------------------------------------
+       STEP 4 — Capture video
+       ----------------------------------------- */
 
-    const stream =
-      canvas.captureStream(30);
+    const videoStream =
+      canvas.captureStream(
+        30
+      );
 
 
-    /* Find supported format */
+    /*
+      Add audio track to the same stream.
+      This makes the downloaded video contain
+      the AI voiceover.
+    */
+
+    const AudioContext =
+      window.AudioContext ||
+      window.webkitAudioContext;
+
+    const audioContext =
+      new AudioContext();
+
+
+    const source =
+      audioContext.createMediaElementSource(
+        audio
+      );
+
+
+    const destination =
+      audioContext.createMediaStreamDestination();
+
+
+    source.connect(
+      destination
+    );
+
+
+    source.connect(
+      audioContext.destination
+    );
+
+
+    destination.stream
+      .getAudioTracks()
+      .forEach(
+        track =>
+          videoStream.addTrack(
+            track
+          )
+      );
+
+
+    /* -----------------------------------------
+       STEP 5 — Recorder
+       ----------------------------------------- */
 
     let mimeType =
-      "video/webm;codecs=vp9";
+      "video/webm;codecs=vp9,opus";
 
     if (
       !MediaRecorder.isTypeSupported(
@@ -767,7 +1385,7 @@ async function createVideo() {
     ) {
 
       mimeType =
-        "video/webm;codecs=vp8";
+        "video/webm;codecs=vp8,opus";
     }
 
     if (
@@ -783,11 +1401,11 @@ async function createVideo() {
 
     const recorder =
       new MediaRecorder(
-        stream,
+        videoStream,
         {
           mimeType,
           videoBitsPerSecond:
-            2500000
+            3000000
         }
       );
 
@@ -800,7 +1418,7 @@ async function createVideo() {
 
         if (
           event.data &&
-          event.data.size > 0
+          event.data.size
         ) {
 
           chunks.push(
@@ -811,29 +1429,39 @@ async function createVideo() {
 
 
     const stopped =
-      new Promise(resolve => {
+      new Promise(
+        resolve => {
 
-        recorder.onstop =
-          resolve;
-      });
+          recorder.onstop =
+            resolve;
+        }
+      );
 
 
-    /* =====================================================
-       EXACTLY 60 SECONDS
-       ===================================================== */
+    /* -----------------------------------------
+       STEP 6 — Scenes
+       ----------------------------------------- */
 
     const scenes = [
 
       {
-        duration: 6,
+        start: 0,
+        end: Math.min(
+          6,
+          audioDuration
+        ),
         title:
           "Government schemes.\nSimplified.",
         text:
-          "Understand important government\nschemes in just 60 seconds."
+          "Important information\nin just one minute."
       },
 
       {
-        duration: 9,
+        start: 6,
+        end: Math.min(
+          15,
+          audioDuration
+        ),
         title:
           "THE SCHEME",
         text:
@@ -842,103 +1470,113 @@ async function createVideo() {
       },
 
       {
-        duration: 11,
+        start: 15,
+        end: Math.min(
+          26,
+          audioDuration
+        ),
         title:
           "WHAT DO YOU GET?",
         text:
           currentResult.benefit ||
-          "Benefit not specified in the notice."
+          "Benefit not specified."
       },
 
       {
-        duration: 13,
+        start: 26,
+        end: Math.min(
+          39,
+          audioDuration
+        ),
         title:
           "WHO IS ELIGIBLE?",
         text:
           currentResult.eligibility ||
-          "Eligibility not specified in the notice."
+          "Eligibility not specified."
       },
 
       {
-        duration: 8,
+        start: 39,
+        end: Math.min(
+          47,
+          audioDuration
+        ),
         title:
           "IMPORTANT DATE",
         text:
           currentResult.deadline ||
-          "Deadline not specified in the notice."
+          "Deadline not specified."
       },
 
       {
-        duration: 8,
+        start: 47,
+        end: Math.min(
+          55,
+          audioDuration
+        ),
         title:
           "BEFORE YOU APPLY",
         text:
-          "Check the original official\nnotification carefully."
+          "Always verify important information\nfrom the official notification."
       },
 
       {
-        duration: 5,
+        start: 55,
+        end:
+          audioDuration,
         title:
           "SCHEME SHORTS AI",
         text:
-          "Simple. Short. Useful.\nTEAM THIRD EYE"
+          "Simple. Short. Useful."
       }
+
     ];
 
 
-    const totalDuration =
-      scenes.reduce(
-        (sum, scene) =>
-          sum + scene.duration,
-        0
-      );
-
-
-    /* Safety check */
-
-    if (
-      totalDuration !== 60
-    ) {
-
-      throw new Error(
-        "Video timeline configuration error."
-      );
-    }
-
+    /* -----------------------------------------
+       STEP 7 — Start recording
+       ----------------------------------------- */
 
     recorder.start(
-      1000
+      500
     );
 
 
-    const start =
+    setStatus(
+      "🎬 Creating your video with AI voiceover..."
+    );
+
+
+    await audioContext.resume();
+
+
+    const startTime =
       performance.now();
 
 
-    function drawFrame() {
+    audio.currentTime =
+      0;
+
+
+    await audio.play();
+
+
+    /* -----------------------------------------
+       STEP 8 — Draw frames
+       ----------------------------------------- */
+
+    function draw() {
 
       const elapsed =
         (
           performance.now() -
-          start
+          startTime
         ) / 1000;
 
 
       if (
-        elapsed >= totalDuration
+        elapsed >= audioDuration
       ) {
-
-        drawVideoFrame(
-          ctx,
-          canvas.width,
-          canvas.height,
-          scenes[
-            scenes.length - 1
-          ],
-          1,
-          scenes.length,
-          scenes.length
-        );
 
         recorder.stop();
 
@@ -946,7 +1584,14 @@ async function createVideo() {
       }
 
 
-      let accumulated = 0;
+      let scene =
+        scenes[
+          scenes.length - 1
+        ];
+
+
+      let sceneIndex =
+        scenes.length - 1;
 
 
       for (
@@ -955,65 +1600,81 @@ async function createVideo() {
         i++
       ) {
 
-        const scene =
-          scenes[i];
-
-
         if (
+          elapsed >=
+            scenes[i].start &&
           elapsed <
-          accumulated +
-          scene.duration
+            scenes[i].end
         ) {
 
-          const sceneElapsed =
-            elapsed -
-            accumulated;
+          scene =
+            scenes[i];
 
-          const progress =
-            sceneElapsed /
-            scene.duration;
+          sceneIndex =
+            i;
 
-
-          drawVideoFrame(
-            ctx,
-            canvas.width,
-            canvas.height,
-            scene,
-            progress,
-            i + 1,
-            scenes.length
-          );
-
-
-          requestAnimationFrame(
-            drawFrame
-          );
-
-          return;
+          break;
         }
-
-
-        accumulated +=
-          scene.duration;
       }
+
+
+      const duration =
+        Math.max(
+          0.1,
+          scene.end -
+            scene.start
+        );
+
+
+      const progress =
+        (
+          elapsed -
+          scene.start
+        ) / duration;
+
+
+      drawVideoFrame(
+        ctx,
+        canvas.width,
+        canvas.height,
+        scene,
+        progress,
+        sceneIndex + 1,
+        scenes.length
+      );
+
+
+      requestAnimationFrame(
+        draw
+      );
     }
 
 
-    drawFrame();
+    draw();
 
 
     await stopped;
 
 
-    stream
+    /* -----------------------------------------
+       STEP 9 — Cleanup
+       ----------------------------------------- */
+
+    audio.pause();
+
+    videoStream
       .getTracks()
       .forEach(
         track =>
           track.stop()
       );
 
+    audioContext.close();
 
-    /* Create video file */
+
+    /* -----------------------------------------
+       STEP 10 — Final video blob
+       ----------------------------------------- */
 
     const blob =
       new Blob(
@@ -1024,29 +1685,13 @@ async function createVideo() {
       );
 
 
-    if (
-      !blob.size
-    ) {
+    if (!blob.size) {
 
       throw new Error(
         "The video file was empty."
       );
     }
 
-
-    /* Remove old preview */
-
-    const oldPreview =
-      document.getElementById(
-        "videoPreview"
-      );
-
-    if (oldPreview) {
-      oldPreview.remove();
-    }
-
-
-    /* Create video URL */
 
     if (generatedVideoUrl) {
 
@@ -1055,43 +1700,25 @@ async function createVideo() {
       );
     }
 
+
     generatedVideoUrl =
       URL.createObjectURL(
         blob
       );
 
 
-    /* Preview */
+    /* -----------------------------------------
+       STEP 11 — Preview
+       ----------------------------------------- */
 
-    const video =
-      document.createElement(
-        "video"
+    const oldVideo =
+      document.getElementById(
+        "videoPreview"
       );
 
-    video.id =
-      "videoPreview";
-
-    video.controls = true;
-
-    video.playsInline = true;
-
-    video.src =
-      generatedVideoUrl;
-
-    video.style.width =
-      "100%";
-
-    video.style.maxWidth =
-      "360px";
-
-    video.style.display =
-      "block";
-
-    video.style.margin =
-      "20px auto 12px";
-
-    video.style.borderRadius =
-      "18px";
+    if (oldVideo) {
+      oldVideo.remove();
+    }
 
 
     const controls =
@@ -1100,30 +1727,139 @@ async function createVideo() {
       );
 
 
+    const preview =
+      document.createElement(
+        "video"
+      );
+
+    preview.id =
+      "videoPreview";
+
+    preview.controls =
+      true;
+
+    preview.playsInline =
+      true;
+
+    preview.src =
+      generatedVideoUrl;
+
+    preview.style.width =
+      "100%";
+
+    preview.style.maxWidth =
+      "360px";
+
+    preview.style.display =
+      "block";
+
+    preview.style.margin =
+      "20px auto";
+
+    preview.style.borderRadius =
+      "18px";
+
+
     controls.appendChild(
-      video
+      preview
     );
 
 
-    /* Download */
+    /* -----------------------------------------
+       STEP 12 — Audio download
+       ----------------------------------------- */
 
-    const downloadButton =
-      document.createElement(
-        "button"
+    let audioButton =
+      document.getElementById(
+        "downloadAudio"
       );
 
-    downloadButton.className =
-      "primary";
 
-    downloadButton.textContent =
-      "⬇ Download Video";
+    if (!audioButton) {
 
-    downloadButton.style.width =
-      "100%";
+      audioButton =
+        document.createElement(
+          "button"
+        );
+
+      audioButton.id =
+        "downloadAudio";
+
+      audioButton.className =
+        "secondary";
+
+      audioButton.style.width =
+        "100%";
+
+      audioButton.style.marginTop =
+        "10px";
+
+      audioButton.textContent =
+        "🎙️ Download Voiceover";
+
+      controls.appendChild(
+        audioButton
+      );
+    }
 
 
-    downloadButton.addEventListener(
-      "click",
+    audioButton.onclick =
+      () => {
+
+        const link =
+          document.createElement(
+            "a"
+          );
+
+        link.href =
+          generatedAudioUrl;
+
+        link.download =
+          "SchemeShorts-AI-voiceover.wav";
+
+        link.click();
+      };
+
+
+    /* -----------------------------------------
+       STEP 13 — Video download
+       ----------------------------------------- */
+
+    let videoDownload =
+      document.getElementById(
+        "downloadVideo"
+      );
+
+
+    if (!videoDownload) {
+
+      videoDownload =
+        document.createElement(
+          "button"
+        );
+
+      videoDownload.id =
+        "downloadVideo";
+
+      videoDownload.className =
+        "primary";
+
+      videoDownload.style.width =
+        "100%";
+
+      videoDownload.style.marginTop =
+        "10px";
+
+      videoDownload.textContent =
+        "⬇ Download Video";
+
+      controls.appendChild(
+        videoDownload
+      );
+    }
+
+
+    videoDownload.onclick =
       () => {
 
         const link =
@@ -1137,29 +1873,20 @@ async function createVideo() {
         link.download =
           "SchemeShorts-60-second-explainer.webm";
 
-        document.body.appendChild(
-          link
-        );
-
         link.click();
-
-        link.remove();
-      }
-    );
+      };
 
 
-    controls.appendChild(
-      downloadButton
-    );
-
-
-    setStatus(
-      "🎉 VIDEO CREATED SUCCESSFULLY! Preview it below and tap Download Video."
-    );
-
+    button.disabled =
+      false;
 
     button.textContent =
       "🎬 Create video again";
+
+
+    setStatus(
+      "🎉 VIDEO READY — AI voiceover included!"
+    );
 
 
   } catch (error) {
@@ -1175,151 +1902,19 @@ async function createVideo() {
       true
     );
 
+    button.disabled =
+      false;
+
     button.textContent =
       "🎬 Create 60-second video";
   }
-
-
-  button.disabled = false;
 }
 
 
 /* =========================================================
-   COPY SCRIPT
+   INITIAL STATUS
    ========================================================= */
 
-document
-  .getElementById("copy")
-  .addEventListener(
-    "click",
-    async () => {
-
-      try {
-
-        await navigator.clipboard.writeText(
-          document
-            .getElementById("script")
-            .value
-        );
-
-        setStatus(
-          "Script copied."
-        );
-
-      } catch {
-
-        setStatus(
-          "Could not copy the script.",
-          true
-        );
-      }
-    }
-  );
-
-
-/* =========================================================
-   DOWNLOAD SCRIPT
-   ========================================================= */
-
-document
-  .getElementById("download")
-  .addEventListener(
-    "click",
-    () => {
-
-      const script =
-        document
-          .getElementById("script")
-          .value;
-
-
-      const blob =
-        new Blob(
-          [script],
-          {
-            type:
-              "text/plain;charset=utf-8"
-          }
-        );
-
-
-      const url =
-        URL.createObjectURL(
-          blob
-        );
-
-
-      const link =
-        document.createElement(
-          "a"
-        );
-
-
-      link.href =
-        url;
-
-      link.download =
-        "schemeshorts-script.txt";
-
-
-      document.body.appendChild(
-        link
-      );
-
-      link.click();
-
-      link.remove();
-
-
-      URL.revokeObjectURL(
-        url
-      );
-    }
-  );
-
-
-/* =========================================================
-   LISTEN TO SCRIPT
-   ========================================================= */
-
-document
-  .getElementById("listen")
-  .addEventListener(
-    "click",
-    () => {
-
-      const text =
-        document
-          .getElementById("script")
-          .value;
-
-
-      if (
-        !text ||
-        !("speechSynthesis" in window)
-      ) {
-        return;
-      }
-
-
-      window.speechSynthesis.cancel();
-
-
-      const speech =
-        new SpeechSynthesisUtterance(
-          text
-        );
-
-
-      speech.lang =
-        "en-IN";
-
-      speech.rate =
-        0.95;
-
-
-      window.speechSynthesis.speak(
-        speech
-      );
-    }
-  );
+setStatus(
+  "Upload a government PDF to begin."
+);
